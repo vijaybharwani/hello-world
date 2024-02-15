@@ -1,0 +1,12 @@
+- route:
+    nodePrefixId: route-56e
+    id: route-05fe
+    from:
+      uri: kamelet:timer-source
+      id: from-f8ba
+      parameters:
+        message: Hello from Karavan
+      steps:
+        - log:
+            message: ${body}
+            id: log-7b79
