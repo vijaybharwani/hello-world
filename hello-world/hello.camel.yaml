@@ -1,0 +1,12 @@
+- route:
+    id: route-b65a
+    nodePrefixId: route-f44
+    from:
+      id: from-9aec
+      uri: timer
+      parameters:
+        timerName: hello
+      steps:
+        - log:
+            id: log-d642
+            message: ${body}
