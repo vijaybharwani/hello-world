@@ -11,3 +11,7 @@
             id: log-d642
             description: test tgius
             message: ${body}
+        - log:
+            id: log-78ac
+            message: ${body}
+            logName: test
