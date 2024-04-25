@@ -1,0 +1,14 @@
+- route:
+    id: route-5e0f
+    description: Create Account
+    nodePrefixId: route-f7c
+    from:
+      id: from-99be
+      description: Create Account
+      uri: direct
+      parameters:
+        name: create-account
+      steps:
+        - log:
+            id: log-83ad
+            message: Account Created

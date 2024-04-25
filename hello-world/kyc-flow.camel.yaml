@@ -1,0 +1,53 @@
+- route:
+    id: route-ec6c
+    description: KYC Validation Flow
+    nodePrefixId: route-98f
+    from:
+      id: from-606f
+      description: KYC Check Flow
+      uri: direct
+      parameters:
+        name: kyc-check
+      steps:
+        - log:
+            id: log-a35e
+            message: ${body}
+        - choice:
+            id: choice-0a07
+            when:
+              - id: when-4434
+                expression:
+                  ognl:
+                    id: ognl-8702
+                    expression: properties.requestPayload.name.length < 5
+                steps:
+                  - log:
+                      id: log-aec1
+                      message: Name size is less than 5
+                  - setBody:
+                      id: setBody-129d
+                      expression:
+                        datasonnet:
+                          id: datasonnet-99f1
+                          expression: '{"valid":true}'
+                          bodyMediaType: application/json
+                          outputMediaType: application/java
+                          resultType: java.util.HashMap
+                  - log:
+                      id: log-a70d
+                      message: ${body}
+            otherwise:
+              id: otherwise-d7d3
+              steps:
+                - log:
+                    id: log-c4e3
+                    message: Name size is greater than 5
+                - setBody:
+                    id: setBody-af0d
+                    expression:
+                      datasonnet:
+                        id: datasonnet-c72f
+                        expression: '{"valid":false}'
+                        bodyMediaType: application/json
+                        outputMediaType: application/java
+                        resultType: java.util.HashMap

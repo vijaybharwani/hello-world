@@ -1,0 +1,49 @@
+- route:
+    id: route-4ff4
+    description: Generate Token
+    nodePrefixId: route-1c6
+    from:
+      id: from-7228
+      uri: direct
+      parameters:
+        name: generate-token
+      steps:
+        - log:
+            id: log-132c
+            message: Generating Token
+        - removeHeaders:
+            id: removeHeaders-924a
+            pattern: '*'
+        - setHeader:
+            id: setHeader-c353
+            description: Content Type
+            name: Content-Type
+            expression:
+              constant:
+                id: constant-7d59
+                expression: application/x-www-form-urlencoded
+        - setBody:
+            id: setBody-512c
+            expression:
+              simple:
+                id: simple-f2fa
+                expression: >-
+                  client_id={{clientId}}&scope={{scope}}&grant_type=client_credentials&client_secret={{clientSecret}}
+        - to:
+            id: to-e30c
+            disabled: false
+            uri: https
+            pattern: InOut
+            parameters:
+              httpUri: '{{accessTokenUrl}}'
+              httpMethod: POST
+              bridgeEndpoint: false
+        - setProperty:
+            id: setProperty-ed61
+            description: Access Token
+            name: accessToken
+            expression:
+              datasonnet:
+                id: datasonnet-adbc
+                expression: payload["access_token"]
+                resultType: java.lang.String
