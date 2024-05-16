@@ -104,4 +104,17 @@
                             description: Throw Exception - KYC Validation Failed
                             message: KYC Validation Failed
                             exceptionType: java.lang.RuntimeException
+- route:
+    id: route-7aac
+    nodePrefixId: route-b50
+    from:
+      id: from-230c
+      uri: kamelet:timer-source
+      parameters:
+        message: Hello
+        period: 5000
+      steps:
+        - log:
+            id: log-55c1
+            message: ${body}
 - routeConfiguration: {}
