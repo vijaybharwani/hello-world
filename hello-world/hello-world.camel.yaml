@@ -1,120 +1,108 @@
 - rest:
     id: accounts-api
     description: Accounts API
-    path: /accounts
+    path: /dci/customers
     post:
       - id: post-fa09
-        path: /
-        to: direct:new-account
+        path: /create
+        to: direct:createCustomer
+      - id: post-7f1d
+        path: /get
+        to: direct:getCustomers
+      - id: post-b78d
+        path: /create/loan
 - route:
-    id: route-e42a
-    description: Open New Account Route
+    id: Get Customers
+    nodePrefixId: route-364
     from:
-      id: from-5726
-      description: Direct
+      id: from-4ab9
       uri: direct
       parameters:
-        name: new-account
+        name: createCustomer
       steps:
-        - setProperty:
-            id: setProperty-5792
-            description: Request
-            name: requestPayload
+        - removeHeaders:
+            id: removeHeaders-9f0b
+            pattern: '*'
+        - setHeader:
+            id: setHeader-7a37
+            description: X-DCI-DciApi-Key
+            name: X-DCI-DciApi-Key
             expression:
-              datasonnet:
-                id: datasonnet-ca44
-                expression: payload
-                bodyMediaType: application/json
-                outputMediaType: application/java
-                resultType: java.util.HashMap
-        - to:
-            id: to-1a11
-            description: Generate Token
-            uri: direct
-            parameters:
-              name: generate-token
-        - to:
-            id: to-b432
-            description: Get Person By Name
-            uri: direct
-            parameters:
-              name: get-person-by-name
-        - choice:
-            id: choice-0d57
-            when:
-              - id: when-1303
-                description: Person Found
-                expression:
-                  datasonnet:
-                    id: datasonnet-6f1a
-                    expression: (std.length(payload)) > 0
-                steps:
-                  - log:
-                      id: log-564f
-                      message: 'Person Found '
-                  - to:
-                      id: to-6738
-                      description: Create Account
-                      uri: direct
-                      parameters:
-                        name: create-account
-            otherwise:
-              id: otherwise-a0fe
-              description: Not Found
-              steps:
-                - log:
-                    id: log-41ed
-                    message: Person Not Found
-                - to:
-                    id: to-e7b9
-                    description: KYC Check
-                    uri: direct
-                    parameters:
-                      name: kyc-check
-                - choice:
-                    id: choice-8c47
-                    when:
-                      - id: when-3ff2
-                        description: KYC Validation Pass
-                        expression:
-                          ognl:
-                            id: ognl-c43b
-                            expression: request.body.valid == true
-                        steps:
-                          - log:
-                              id: log-f29e
-                              message: Valid KYC
-                          - to:
-                              id: to-5c9c
-                              description: Create Person
-                              uri: direct
-                              parameters:
-                                name: create-person
-                          - to:
-                              id: to-b6e3
-                              description: Create Account
-                              uri: direct
-                              parameters:
-                                name: create-account
-                    otherwise:
-                      id: otherwise-3590
-                      steps:
-                        - throwException:
-                            id: throwException-83d2
-                            description: Throw Exception - KYC Validation Failed
-                            message: KYC Validation Failed
-                            exceptionType: java.lang.RuntimeException
+              csimple:
+                id: csimple-87a6
+                expression: '{{dciApiKey}}'
+        - setHeader:
+            id: setHeader-ebb8
+            description: Content-Type
+            name: Content-Type
+            expression:
+              constant:
+                id: constant-8efc
+                expression: application/json
+        - toD:
+            id: toD-7c94
+            uri: >-
+              https://api.datacenterinc.com/4110WFLLMPGL/DciApi/SBX08/CustAcct/Customer/List
 - route:
-    id: route-7aac
-    nodePrefixId: route-b50
+    id: Create Customer
+    nodePrefixId: route-a49
     from:
-      id: from-230c
-      uri: kamelet:timer-source
+      id: from-18e8
+      uri: direct
       parameters:
-        message: Hello
-        period: 5000
+        name: getCustomers
       steps:
-        - log:
-            id: log-55c1
-            message: ${body}
+        - removeHeaders:
+            id: removeHeaders-7b7f
+            pattern: '*'
+        - setHeader:
+            id: setHeader-e165
+            description: X-DCI-DciApi-Key
+            name: X-DCI-DciApi-Key
+            expression:
+              simple:
+                id: simple-8ade
+                expression: '{{dciApiKey}}'
+        - setHeader:
+            id: setHeader-ba57
+            name: Content-Type
+            expression:
+              constant:
+                id: constant-4163
+                expression: application/json
+        - toD:
+            id: toD-dbf1
+            uri: >-
+              https://api.datacenterinc.com/4110WFLLMPGL/DciApi/SBX08/CustAcct/Customer/Create
+- route:
+    id: route-3000
+    nodePrefixId: route-c21
+    from:
+      id: from-ca4b
+      uri: direct
+      parameters:
+        name: create-loan
+      steps:
+        - removeHeaders:
+            id: removeHeaders-d3ea
+            pattern: '*'
+        - setHeader:
+            id: setHeader-a9d9
+            name: Content-Type
+            expression:
+              constant:
+                id: constant-037e
+                expression: application/json
+        - setHeader:
+            id: setHeader-ffe3
+            description: X-DCI-DciApi-Key
+            name: X-DCI-DciApi-Key
+            expression:
+              simple:
+                id: simple-c398
+                expression: '{{dciApiKey}}'
+        - toD:
+            id: toD-6c31
+            uri: >-
+              https://api.datacenterinc.com/4110WFLLMPGL/DciApi/SBX08/Loan/Create
 - routeConfiguration: {}
