@@ -1,3 +1,4 @@
+- restConfiguration: {}
 - rest:
     id: accounts-api
     description: Accounts API
@@ -11,6 +12,14 @@
         to: direct:getCustomers
       - id: post-b78d
         path: /create/loan
+        to: direct:create-loan
+- rest:
+    id: rest-e05b
+    path: /salesforce
+    get:
+      - id: get-9797
+        path: /token
+        to: direct:create-token
 - route:
     id: Get Customers
     nodePrefixId: route-364
@@ -18,7 +27,7 @@
       id: from-4ab9
       uri: direct
       parameters:
-        name: createCustomer
+        name: getCustomers
       steps:
         - removeHeaders:
             id: removeHeaders-9f0b
@@ -28,9 +37,9 @@
             description: X-DCI-DciApi-Key
             name: X-DCI-DciApi-Key
             expression:
-              csimple:
-                id: csimple-87a6
-                expression: '{{dciApiKey}}'
+              constant:
+                id: constant-e341
+                expression: 4110;18010;06923eb6-9011-41cd-9293-8b05e3
         - setHeader:
             id: setHeader-ebb8
             description: Content-Type
@@ -39,10 +48,21 @@
               constant:
                 id: constant-8efc
                 expression: application/json
+        - setHeader:
+            id: setHeader-e305
+            name: CamelHttpMethod
+            expression:
+              constant:
+                id: constant-ee4f
+                expression: POST
+        - log:
+            id: log-f465
+            message: ${body}
         - toD:
             id: toD-7c94
             uri: >-
               https://api.datacenterinc.com/4110WFLLMPGL/DciApi/SBX08/CustAcct/Customer/List
+            ignoreInvalidEndpoint: true
 - route:
     id: Create Customer
     nodePrefixId: route-a49
@@ -50,7 +70,7 @@
       id: from-18e8
       uri: direct
       parameters:
-        name: getCustomers
+        name: createCustomers
       steps:
         - removeHeaders:
             id: removeHeaders-7b7f
@@ -76,9 +96,11 @@
               https://api.datacenterinc.com/4110WFLLMPGL/DciApi/SBX08/CustAcct/Customer/Create
 - route:
     id: route-3000
+    description: DCI Loan Create
     nodePrefixId: route-c21
     from:
       id: from-ca4b
+      description: DCI Loan Create
       uri: direct
       parameters:
         name: create-loan
@@ -92,7 +114,7 @@
             expression:
               constant:
                 id: constant-037e
-                expression: application/json
+                expression: appli
         - setHeader:
             id: setHeader-ffe3
             description: X-DCI-DciApi-Key
@@ -101,8 +123,141 @@
               simple:
                 id: simple-c398
                 expression: '{{dciApiKey}}'
+        - setHeader:
+            id: setHeader-2bfb
+            description: Method
+            name: CamelHttpMethod
+            expression:
+              constant:
+                id: constant-b246
+                expression: POSt
         - toD:
             id: toD-6c31
             uri: >-
               https://api.datacenterinc.com/4110WFLLMPGL/DciApi/SBX08/Loan/Create
+- route:
+    id: route-07e8
+    nodePrefixId: route-77d
+    from:
+      id: from-e3b7
+      description: SF Generate Token
+      uri: direct
+      parameters:
+        name: create-token
+      steps:
+        - removeHeaders:
+            id: removeHeaders-0e29
+            pattern: '*'
+        - setHeader:
+            id: setHeader-f340
+            description: Content-Type
+            name: Content-Type
+            expression:
+              constant:
+                id: constant-9863
+                expression: application/x-www-form-urlencoded
+        - setBody:
+            id: setBody-da98
+            expression:
+              csimple:
+                id: csimple-1954
+                expression: >-
+                  grant_type=password&client_id={{clientId}}&client_secret={{clientSecret}}&username={{username}}&password=A5a%25Y9|):llD?WXZ
+                resultType: java.lang.String
+        - setHeader:
+            id: setHeader-da78
+            description: CamelHttpMethod
+            name: CamelHttpMethod
+            expression:
+              constant:
+                id: constant-a26f
+                expression: POST
+        - to:
+            id: to-4d2c
+            uri: https
+            parameters:
+              httpUri: https://test.salesforce.com/services/oauth2/token
+              throwExceptionOnFailure: false
+              authenticationPreemptive: false
+        - log:
+            id: log-1e9c
+            message: ${body}
+        - setProperty:
+            id: setProperty-2595
+            name: accessToken
+            expression:
+              datasonnet:
+                id: datasonnet-0d22
+                expression: payload['access_token']
+                bodyMediaType: application/json
+                outputMediaType: application/java
+                resultType: java.lang.String
+- route:
+    id: route-b79d
+    description: SF SalesAccountLoanCreate
+    nodePrefixId: route-3e7
+    from:
+      id: from-cf47
+      uri: direct
+      parameters:
+        name: salesAccountLoanCreate
+      steps:
+        - to:
+            id: to-4ef1
+            uri: direct
+            parameters:
+              name: create-token
+        - removeHeaders:
+            id: removeHeaders-b7ec
+            pattern: '*'
+        - setHeader:
+            id: setHeader-9ceb
+            name: CamelHttpMethod
+            expression:
+              constant:
+                id: constant-b805
+                expression: GET
+        - setHeader:
+            id: setHeader-ff28
+            description: Authorization
+            name: Authorization
+            expression:
+              simple:
+                id: simple-c9c9
+                expression: Bearer ${exchangeProperty.accessToken}
+        - setProperty:
+            id: setProperty-ccb6
+            description: Query
+            name: query
+            expression:
+              simple:
+                id: simple-1eb0
+                expression: >-
+                  query?q=SELECT FIELDS(ALL), (SELECT Fields(ALL) FROM
+                  Parties__r where Is_Primary_Borrower__c = 'Yes' LIMIT 200),
+                  (SELECT Fields(ALL) FROM Facilities__r WHERE Stage__c =
+                  'Disbursement'  LIMIT 200) , (SELECT Fields(ALL) FROM
+                  Facility_Parties__r WHERE RecordType.Name IN ('Guarantor')
+                  LIMIT 200) , (SELECT Project_Cost__c, Amount__c FROM
+                  Sources_Uses__r  WHERE Project_Cost__c LIKE '%25Fee%25') ,
+                  (SELECT  Policy_Type__c,Policy_Amount__c,Expiration_Date__c
+                  FROM Insurances__r),(SELECT Fields(ALL) FROM Collaterals__r
+                  LIMIT 200) FROM Opportunity WHERE ID='006Em00000BTfavIAD'
+        - toD:
+            id: toD-f6c9
+            uri: >-
+              https://celticbank--staging.sandbox.my.salesforce.com/services/data/v57.0/${exchangeProperty.query}
+        - transform:
+            id: transform-23a2
+            description: New Loan mapping processor
+            expression:
+              simple:
+                id: simple-f00f
+                expression: map
+        - to:
+            id: to-8e43
+            description: DCI Loan Create
+            uri: direct
+            parameters:
+              name: create-loan
 - routeConfiguration: {}
