@@ -4,96 +4,9 @@
     description: Accounts API
     path: /dci/customers
     post:
-      - id: post-fa09
-        path: /create
-        to: direct:createCustomer
-      - id: post-7f1d
-        path: /get
-        to: direct:getCustomers
       - id: post-b78d
         path: /create/loan
         to: direct:create-loan
-- rest:
-    id: rest-e05b
-    path: /salesforce
-    get:
-      - id: get-9797
-        path: /token
-        to: direct:create-token
-- route:
-    id: Get Customers
-    nodePrefixId: route-364
-    from:
-      id: from-4ab9
-      uri: direct
-      parameters:
-        name: getCustomers
-      steps:
-        - removeHeaders:
-            id: removeHeaders-9f0b
-            pattern: '*'
-        - setHeader:
-            id: setHeader-7a37
-            description: X-DCI-DciApi-Key
-            name: X-DCI-DciApi-Key
-            expression:
-              constant:
-                id: constant-e341
-                expression: 4110;18010;06923eb6-9011-41cd-9293-8b05e3
-        - setHeader:
-            id: setHeader-ebb8
-            description: Content-Type
-            name: Content-Type
-            expression:
-              constant:
-                id: constant-8efc
-                expression: application/json
-        - setHeader:
-            id: setHeader-e305
-            name: CamelHttpMethod
-            expression:
-              constant:
-                id: constant-ee4f
-                expression: POST
-        - log:
-            id: log-f465
-            message: ${body}
-        - toD:
-            id: toD-7c94
-            uri: >-
-              https://api.datacenterinc.com/4110WFLLMPGL/DciApi/SBX08/CustAcct/Customer/List
-            ignoreInvalidEndpoint: true
-- route:
-    id: Create Customer
-    nodePrefixId: route-a49
-    from:
-      id: from-18e8
-      uri: direct
-      parameters:
-        name: createCustomers
-      steps:
-        - removeHeaders:
-            id: removeHeaders-7b7f
-            pattern: '*'
-        - setHeader:
-            id: setHeader-e165
-            description: X-DCI-DciApi-Key
-            name: X-DCI-DciApi-Key
-            expression:
-              simple:
-                id: simple-8ade
-                expression: '{{dciApiKey}}'
-        - setHeader:
-            id: setHeader-ba57
-            name: Content-Type
-            expression:
-              constant:
-                id: constant-4163
-                expression: application/json
-        - toD:
-            id: toD-dbf1
-            uri: >-
-              https://api.datacenterinc.com/4110WFLLMPGL/DciApi/SBX08/CustAcct/Customer/Create
 - route:
     id: route-3000
     description: DCI Loan Create
@@ -105,6 +18,11 @@
       parameters:
         name: create-loan
       steps:
+        - to:
+            id: to-d626
+            uri: direct
+            parameters:
+              name: salesAccountLoanCreate
         - removeHeaders:
             id: removeHeaders-d3ea
             pattern: '*'
@@ -114,7 +32,7 @@
             expression:
               constant:
                 id: constant-037e
-                expression: appli
+                expression: application/json
         - setHeader:
             id: setHeader-ffe3
             description: X-DCI-DciApi-Key
@@ -130,13 +48,14 @@
             expression:
               constant:
                 id: constant-b246
-                expression: POSt
+                expression: POST
         - toD:
             id: toD-6c31
             uri: >-
               https://api.datacenterinc.com/4110WFLLMPGL/DciApi/SBX08/Loan/Create
 - route:
     id: route-07e8
+    description: SF ACCESS TOKEN
     nodePrefixId: route-77d
     from:
       id: from-e3b7
@@ -146,7 +65,7 @@
         name: create-token
       steps:
         - removeHeaders:
-            id: removeHeaders-0e29
+            id: removeHeaders-ef29
             pattern: '*'
         - setHeader:
             id: setHeader-f340
@@ -176,7 +95,7 @@
             id: to-4d2c
             uri: https
             parameters:
-              httpUri: https://test.salesforce.com/services/oauth2/token
+              httpUri: test.salesforce.com/services/oauth2/token
               throwExceptionOnFailure: false
               authenticationPreemptive: false
         - log:
@@ -208,7 +127,7 @@
             parameters:
               name: create-token
         - removeHeaders:
-            id: removeHeaders-b7ec
+            id: removeHeaders-d6fc
             pattern: '*'
         - setHeader:
             id: setHeader-9ceb
@@ -245,19 +164,139 @@
                   LIMIT 200) FROM Opportunity WHERE ID='006Em00000BTfavIAD'
         - toD:
             id: toD-f6c9
+            description: Fetch From Salesforce
             uri: >-
               https://celticbank--staging.sandbox.my.salesforce.com/services/data/v57.0/${exchangeProperty.query}
+        - log:
+            id: log-bbb4
+            message: ${body}
         - transform:
             id: transform-23a2
             description: New Loan mapping processor
             expression:
-              simple:
-                id: simple-f00f
-                expression: map
-        - to:
-            id: to-8e43
-            description: DCI Loan Create
-            uri: direct
-            parameters:
-              name: create-loan
+              datasonnet:
+                id: datasonnet-3ed5
+                expression: >-
+                  local record = payload.records[0];
+
+                  local partyRecord = record['Parties__r'].records[0];
+
+                  local facilityRecord = record['Facilities__r'].records[0];
+
+                  local parseToZonedDateTime(input, formatter) =
+                  ds.zoneddatetime.parse(input, formatter);
+
+                  local toLocalDate(zonnedDateTime) =
+                  ds.zoneddatetime.toLocalDate(zonnedDateTime);
+
+                  local plus(date, interval) = ds.zoneddatetime.plus(date,
+                  interval);
+
+                  local contains(pattern, input) =
+                  std.length(std.findSubstr(pattern, input)) > 0;
+
+                  {
+                      "userId" : "cas251",
+                      customerRelationships : {
+                          ownerShipCode : if(partyRecord['Party_Role__c'] == 'Borrower') then "01" else if (partyRecord['Is_Guarantor__c']) then "GT" else "",
+                          custNum : partyRecord['iCore_Customer_Number__c'],
+                          beneficialOwnerPercent : partyRecord['Ownership_Percentage__c']
+                      },
+                      addressNameLine2 : partyRecord['Address_Line_2__c'],
+                      accountAddress : {
+                          isForeignAddress : "No",
+                          foreignCountry : "",
+                          street : partyRecord['Address_Line_1__c'],
+                          city : partyRecord['City__c'],
+                          state :partyRecord['State__c'],
+                          zip5 : partyRecord['Zipcode__c'],
+                          zip4 : partyRecord['Physical_4_Digit_Zip_Code__c'],
+                      },
+                      loan : {
+                          acctNum : facilityRecord['Loan_Number__c'],
+                          productType: facilityRecord['Loan_Amount__c'],
+                          branch : 0,
+                          custNum: partyRecord['iCore_Customer_Number__c'],
+                          openDate : facilityRecord['Closed_Date__c'],
+                          // pending
+                          maturityDate : 
+                          toLocalDate(plus(parseToZonedDateTime(facilityRecord['Closed_Date__c'], "yyyy-MM-dd'T'HH:mm:ss.SSSZ"), "P"+ facilityRecord['Term_Months__c'] +"M"))
+                          ,
+
+                          // pending
+                          term : {
+                              num : 1,
+                              units : "months"
+                          },
+                          rateCode : "01",
+                          rate : facilityRecord['Initial_Rate__c'],
+                          appRate : if (std.objectHas(facilityRecord, 'APR__c')) then facilityRecord['APR__c'] else "",
+                          officerCode : "TG",
+                          officerCode2 : "",
+                          callReportCodeLoan : "71",
+                          payment : {
+                              regularPayment : facilityRecord['Estimated_Loan_Payment__c'],
+                              paymentFrequency: if(contains("Month", facilityRecord['Payment_Frequency__c'])) then {
+
+                                  num : facilityRecord['Payment_Frequency_Value__c'],
+                                  units : "months"
+
+                              } else null,
+                          },
+                          currentBal : facilityRecord['Total_Pipeline_Amount__c'],
+                          originalBal : facilityRecord['Total_Pipeline_Amount__c'],
+                          contractBal : facilityRecord['Total_Pipeline_Amount__c'],
+                          amtAdvanced : facilityRecord['Total_Pipeline_Amount__c'],
+                          interestMethod : "notSpecified",
+                          interestRateReviewDate : ds.datetime.now().format("yyyy-MM-dd"),
+                          intrestRateChangeDate : ds.datetime.now().format("yyyy-MM-dd"),
+                          rateType : facilityRecord['Rate_Type__c'],
+                          
+                      rateAdjustment : if(std.objectHas(facilityRecord, 'Interest_Methodology__c')) then facilityRecord['Interest_Methodology__c'] else null ,
+                          naics : partyRecord['NAICS_Code__c'],
+                          acctDescription : record['Description'],
+                          hasTeaserRate : "no",
+                          initialRate : facilityRecord['Initial_Rate__c'],
+                          purposeCode : "119",  
+                      },
+                      variable : {
+                  // check
+                          rateChangeFrequency : {
+                              num : facilityRecord['Rate_Adjustment_Frequency__c'],
+                              units : "months"
+                          },
+                          rateIncreaseCapYear : "0d",
+                          rateIncreaseCapPeriod: "0d",
+                          rateDecreaseCapPeriod : "0d",
+                          rateDecreaseCapLife : "0d",
+                          
+                          originalIndex : if(std.objectHas(facilityRecord,'Rate_Index__c')) then std.substr(facilityRecord['Rate_Index__c'], 0, 2) else null,
+                          rateDecreaseCapYear : "0d",
+                      },
+                      loanInsurances : std.map(function(insuranceRecord) {
+                          type : insuranceRecord['Policy_Type__c'],
+                          originalAmt : insuranceRecord['Policy_Amount__c'],
+                          originalNumOfMonths : ds.datetime.now().month - (ds.datetime.parse(insuranceRecord['Expiration_Date__c'], "yyyy-MM-dd").month)
+                      }, record['Insurances__r'].records),
+                  collaterals : std.map(function(collatralRecord) {
+                          "code" : "01",
+                          "description1" : collatralRecord['Description__c'],
+                          "isCrossColateralized" : collatralRecord['iCore_Collateral_Id__c'],
+                          "appraisalValueDate" : collatralRecord['Valuation_Date__c'],
+                          value : collatralRecord['Market_Value__c'],
+                          sourceValue : collatralRecord['Valuation_Source__c'],
+                          propertyStreetAddr : collatralRecord['Address_1__c']+ if(std.objectHas(collatralRecord, "Address_2__c") && collatralRecord['Address_2__c'] != null) then collatralRecord['Address_2__c'] else "",
+                          propertyCity : collatralRecord['City__c'],
+                          propertyState : collatralRecord['State__c'],
+                          propertyZip: collatralRecord['Zipcode__c'],
+                          propertyZip4: collatralRecord['Four_Digit_Zip_Code__c'],
+                          propertyCountry : "USA",
+                          isPropertyInForeignCountry : "No"
+
+                      },  record['Collaterals__r'].records) ,
+                      loanFees :  std.map(function(sourceUsesRecord){
+                          type : "15",
+                          totalAmt : sourceUsesRecord['Amount__c']
+                      }, record['Sources_Uses__r'].records) 
+                  }
 - routeConfiguration: {}
